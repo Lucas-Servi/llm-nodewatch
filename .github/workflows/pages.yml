@@ -1,0 +1,76 @@
+name: Deploy site to Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+# Read-only by default; the deploy job opts into what it needs.
+permissions:
+  contents: read
+
+# One deploy at a time. Don't cancel a running deploy — a half-published site is
+# worse than a slightly stale one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the site is self-contained
+        run: |
+          python - <<'PY'
+          import pathlib, re, sys
+
+          site = pathlib.Path("site")
+          html = (site / "index.html").read_text()
+
+          # The site must make no third-party requests at runtime: it has to keep
+          # working offline and can't leak visitors to a CDN. Fonts are vendored.
+          external = re.findall(r'(?:src|href)="(https?://[^"]+)"', html)
+          allowed_prefixes = (
+              "https://github.com/",
+              "https://pypi.org/",
+              "https://raw.githubusercontent.com/",   # og:image only, not a page asset
+              "https://modelcontextprotocol.io",
+              "https://lucas-servi.github.io/",       # canonical + og:url
+          )
+          bad = [u for u in external if not u.startswith(allowed_prefixes)]
+          assert not bad, f"unexpected external asset: {bad}"
+
+          # Anything the page actually loads must exist on disk.
+          local = re.findall(r'(?:src|href)="(?!https?:|#|mailto:)([^"]+)"', html)
+          missing = [p for p in local if not (site / p).exists()]
+          assert not missing, f"referenced but missing: {missing}"
+
+          print(f"site OK: {len(local)} local assets, no third-party page assets")
+          PY
+
+      - uses: actions/configure-pages@v5
+        # Enables Pages on first run so this doesn't need a manual settings toggle.
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,386 @@
+/* nodewatch showcase site.
+   Base is ink-navy rather than neutral near-black: this page should read as an
+   instrument panel, not as another dev-tool dark theme. The three ramp colours
+   are data, not decoration — a node's colour is its share of the bill. */
+
+@font-face {
+  font-family: "JBM";
+  src: url("fonts/jbm-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JBM";
+  src: url("fonts/jbm-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+
+:root {
+  --ink:   #0A0F1C;
+  --panel: #101A2C;
+  --rule:  #1F2B45;
+  --dim:   #7C8AA6;
+  --paper: #E9EEF8;
+
+  --azure: #58A6FF;
+  --amber: #F2A93B;
+  --coral: #FF6A5A;
+
+  --mono: "JBM", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  --gut: clamp(1.25rem, 4vw, 3rem);
+  --maxw: 68rem;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--sans);
+  font-size: clamp(1rem, 0.95rem + 0.2vw, 1.0625rem);
+  line-height: 1.65;
+  /* A single, very soft pool of light behind the hero so the panel sits in
+     something rather than floating on flat black. Not a decorative gradient. */
+  background-image: radial-gradient(120% 70% at 12% -10%, #14203a 0%, transparent 60%);
+  background-repeat: no-repeat;
+}
+
+h1, h2, .mark-word, .code, code, pre, table, .totals dd, .num {
+  font-family: var(--mono);
+}
+
+a { color: var(--azure); text-decoration-thickness: 1px; text-underline-offset: 0.2em; }
+a:hover { color: var(--paper); }
+
+:focus-visible {
+  outline: 2px solid var(--azure);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.vh {
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
+.skip {
+  position: absolute; left: -9999px;
+  background: var(--panel); color: var(--paper);
+  padding: 0.6rem 1rem; z-index: 10;
+}
+.skip:focus { left: var(--gut); top: 0.5rem; }
+
+/* ── top rail ─────────────────────────────────────────────────────────── */
+
+.rail {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem;
+  max-width: var(--maxw); margin: 0 auto;
+  padding: 1.5rem var(--gut) 0;
+}
+
+.mark {
+  display: inline-flex; align-items: center; gap: 0.6rem;
+  color: var(--paper); text-decoration: none;
+}
+.mark-glyph { width: 30px; height: 23px; overflow: visible; }
+.mark-glyph path { stroke: var(--rule); stroke-width: 2; fill: none; }
+.mark-glyph .g-node { fill: var(--dim); }
+.mark-glyph .g-hot  { fill: var(--azure); }
+.mark-glyph .g-ring { fill: none; stroke: var(--azure); stroke-width: 1.6; }
+.mark-word { font-size: 1.0625rem; letter-spacing: -0.02em; }
+.mark-word b { color: var(--azure); font-weight: 400; }
+
+.rail-nav { display: flex; gap: clamp(0.9rem, 2vw, 1.6rem); font-family: var(--mono); font-size: 0.875rem; }
+
+/* ── hero ─────────────────────────────────────────────────────────────── */
+
+.hero { max-width: var(--maxw); margin: 0 auto; padding: clamp(2.5rem, 7vw, 5rem) var(--gut) 0; }
+
+h1 {
+  font-size: clamp(1.75rem, 1.1rem + 3.4vw, 3.5rem);
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -0.04em;
+  margin: 0 0 1.1rem;
+  max-width: 24ch;
+}
+
+.lede {
+  color: var(--dim);
+  max-width: 62ch;
+  margin: 0 0 clamp(1.75rem, 4vw, 2.75rem);
+}
+
+/* ── the instrument panel ─────────────────────────────────────────────── */
+
+.panel {
+  margin: 0;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.panel-head {
+  display: flex; flex-wrap: wrap; gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--dim);
+}
+.panel-head .run-id { color: var(--paper); }
+.panel-head .sep { color: var(--rule); }
+.panel-head > span:last-child {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+
+.panel-body { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); }
+
+.stage {
+  padding: 1.25rem;
+  border-right: 1px solid var(--rule);
+  display: flex; align-items: center; justify-content: center;
+}
+#graph { width: 100%; max-width: 300px; height: auto; overflow: visible; }
+
+/* graph primitives — state is driven from JS via CSS custom properties */
+.edge {
+  stroke: var(--rule); stroke-width: 2; fill: none;
+  stroke-dasharray: var(--len, 100); stroke-dashoffset: var(--len, 100);
+}
+.edge.lit { stroke: var(--c, var(--azure)); stroke-dashoffset: 0; }
+
+.nbox { fill: #0C1424; stroke: var(--rule); stroke-width: 1.5; }
+.nbox.lit { stroke: var(--c, var(--azure)); }
+
+.nbar { fill: var(--rule); }
+.nbar.lit { fill: var(--c, var(--azure)); }
+
+.nname { fill: var(--dim); font-family: var(--mono); font-size: 12px; }
+.nname.lit { fill: var(--paper); }
+
+.nval { fill: var(--dim); font-family: var(--mono); font-size: 10.5px; }
+.nval.lit { fill: var(--c, var(--azure)); }
+
+.halo { fill: none; stroke: var(--c, var(--azure)); stroke-width: 1.5; opacity: 0; }
+.loop { stroke: var(--coral); stroke-width: 2.6; fill: none; opacity: 0;
+        stroke-dasharray: var(--len, 60); stroke-dashoffset: var(--len, 60); }
+.pip  { fill: var(--dim); opacity: 0; }
+
+/* the loop badge is the differentiator on this page — it should read as a
+   stamped marker, not as another value label */
+.nloop {
+  fill: var(--coral);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.nhit { fill: transparent; cursor: default; }
+
+/* ── ledger ───────────────────────────────────────────────────────────── */
+
+.ledger { padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+
+#ledger { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+#ledger th, #ledger td { padding: 0.5rem 0.35rem; text-align: left; }
+#ledger thead th {
+  color: var(--dim); font-weight: 400;
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.75rem;
+}
+#ledger .num { text-align: right; font-variant-numeric: tabular-nums; }
+#ledger tbody tr { border-bottom: 1px solid rgba(31, 43, 69, 0.6); }
+#ledger tbody tr:last-child { border-bottom: 0; }
+#ledger tbody th { font-weight: 400; color: var(--dim); }
+#ledger tr.lit th { color: var(--paper); }
+#ledger td { color: var(--dim); font-variant-numeric: tabular-nums; }
+#ledger tr.lit td { color: var(--paper); }
+
+/* the cost cell is a bar plus its number, so magnitude is visible not just read */
+.cost-cell { position: relative; }
+.cost-bar {
+  position: absolute; inset: 0.35rem auto 0.35rem 0;
+  width: var(--w, 0%);
+  background: var(--c, var(--azure));
+  opacity: 0.3;
+  border-radius: 2px;
+}
+.cost-num { position: relative; }
+
+#ledger tr.hi th, #ledger tr.hi td { color: var(--paper); }
+#ledger tr.hi .cost-bar { opacity: 0.4; }
+
+.totals {
+  display: flex; flex-wrap: wrap; gap: 0 clamp(1rem, 3vw, 2rem);
+  margin: 0; padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+.totals dt { color: var(--dim); font-size: 0.75rem; font-family: var(--mono); }
+.totals dd { margin: 0.1rem 0 0; font-size: clamp(1.05rem, 2.2vw, 1.375rem); font-variant-numeric: tabular-nums; }
+
+.replay {
+  align-self: flex-start;
+  margin-top: auto;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--dim);
+  font-family: var(--mono); font-size: 0.8125rem;
+  padding: 0.45rem 0.8rem; border-radius: 6px;
+  cursor: pointer;
+}
+.replay:hover { color: var(--paper); border-color: var(--azure); }
+.replay-glyph { display: inline-block; }
+
+.verdict {
+  margin: 1.1rem 0 0;
+  color: var(--dim);
+  max-width: 62ch;
+  font-size: 0.9375rem;
+}
+.verdict b { color: var(--coral); font-weight: 400; font-family: var(--mono); }
+
+/* ── install line ─────────────────────────────────────────────────────── */
+
+.install {
+  display: flex; align-items: stretch; gap: 0.5rem;
+  margin: clamp(1.75rem, 4vw, 2.5rem) 0 0;
+  flex-wrap: wrap;
+}
+#install-cmd {
+  flex: 1 1 20rem;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.9375rem;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.copy {
+  background: var(--panel); border: 1px solid var(--rule); color: var(--dim);
+  font-family: var(--mono); font-size: 0.875rem;
+  padding: 0.7rem 1rem; border-radius: 8px; cursor: pointer;
+}
+.copy:hover { color: var(--paper); border-color: var(--azure); }
+.copy.done { color: var(--azure); border-color: var(--azure); }
+
+/* ── bands below the hero ─────────────────────────────────────────────── */
+
+.band {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: clamp(3rem, 8vw, 5.5rem) var(--gut) 0;
+}
+.band > h2 {
+  font-size: clamp(1.125rem, 1rem + 0.9vw, 1.5rem);
+  font-weight: 700; letter-spacing: -0.02em;
+  margin: 0 0 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.prose { color: var(--dim); max-width: 66ch; }
+.prose p { margin: 0 0 1rem; }
+.prose p:last-child { margin-bottom: 0; }
+.prose code { color: var(--paper); font-size: 0.9em; }
+.prose b { color: var(--paper); font-weight: 700; }
+.aside { margin-top: 1.25rem; font-size: 0.9375rem; }
+
+.split { display: grid; gap: clamp(1.25rem, 3vw, 2.5rem); grid-template-columns: 1fr 1fr; align-items: start; }
+
+.code {
+  margin: 0;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: 0.8125rem;
+  line-height: 1.75;
+}
+.code .c { color: var(--dim); }
+.code .s { color: var(--amber); }
+.code .k { color: var(--azure); }
+
+.scroll-x { overflow-x: auto; }
+
+.compare { width: 100%; border-collapse: collapse; font-size: 0.8125rem; min-width: 40rem; }
+.compare th, .compare td { padding: 0.65rem 0.75rem; text-align: left; border-bottom: 1px solid var(--rule); }
+.compare thead th { color: var(--dim); font-weight: 400; }
+.compare thead th.mine { color: var(--azure); }
+.compare tbody th { font-weight: 400; color: var(--paper); }
+.compare td { color: var(--dim); }
+.compare .mine { color: var(--paper); background: rgba(88,166,255,0.05); }
+.compare tbody tr:last-child th, .compare tbody tr:last-child td { border-bottom: 0; }
+
+.spec { margin: 0; display: grid; gap: 0; }
+.spec > div {
+  display: grid;
+  grid-template-columns: minmax(9rem, 14rem) 1fr;
+  gap: 0 clamp(1rem, 3vw, 2rem);
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.spec > div:last-child { border-bottom: 0; }
+.spec dt { font-family: var(--mono); font-size: 0.8125rem; color: var(--azure); }
+.spec dd { margin: 0; color: var(--dim); }
+.spec dd code { color: var(--paper); font-size: 0.9em; }
+
+/* ── footer ───────────────────────────────────────────────────────────── */
+
+.foot {
+  max-width: var(--maxw); margin: 0 auto;
+  padding: clamp(3rem, 8vw, 5rem) var(--gut) 3rem;
+}
+.foot-links {
+  display: flex; flex-wrap: wrap; gap: 0.5rem clamp(1rem, 3vw, 2rem);
+  font-family: var(--mono); font-size: 0.875rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+}
+.foot-note { color: var(--dim); font-size: 0.8125rem; margin: 1rem 0 0; max-width: 62ch; }
+
+/* ── responsive ───────────────────────────────────────────────────────── */
+
+@media (max-width: 60rem) {
+  .panel-body { grid-template-columns: 1fr; }
+  .stage { border-right: 0; border-bottom: 1px solid var(--rule); }
+  .split { grid-template-columns: 1fr; }
+  .spec > div { grid-template-columns: 1fr; gap: 0.25rem; }
+}
+
+@media (max-width: 30rem) {
+  .rail { flex-wrap: wrap; }
+  .totals { gap: 0.75rem 1.25rem; }
+}
+
+/* ── reduced motion ───────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .edge, .nbox, .nbar, .nname, .nval, .halo, .loop, .pip, .cost-bar { transition: none !important; }
+  .replay { display: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .edge      { transition: stroke-dashoffset 260ms linear, stroke 200ms ease; }
+  .nbox      { transition: stroke 220ms ease; }
+  .nbar      { transition: fill 220ms ease; }
+  .nname     { transition: fill 220ms ease; }
+  .nval      { transition: fill 220ms ease; }
+  .halo      { transition: opacity 400ms ease; }
+  .loop      { transition: stroke-dashoffset 520ms ease-out, opacity 200ms ease; }
+  .pip       { transition: opacity 200ms ease; }
+  .cost-bar  { transition: width 120ms linear; }
+  #ledger tr { transition: color 200ms ease; }
+}

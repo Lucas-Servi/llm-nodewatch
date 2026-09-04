@@ -1,0 +1,115 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "llm-nodewatch"
+version = "0.2.0"
+description = "Per-node token, cost and latency tracking for LangGraph agents. One SQLite file, no infrastructure."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{name = "Lucas Servi", email = "lucasservi@gmail.com"}]
+keywords = ["langgraph", "langchain", "observability", "benchmarking", "llm", "tokens", "cost-tracking"]
+# NOTE: no "License :: OSI Approved ::" classifier here on purpose. PEP 639 forbids
+# pairing a license classifier with the `license = "MIT"` SPDX expression above;
+# setuptools>=77 hard-errors on it and twine>=6.1 warns.
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Environment :: Console",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: System :: Monitoring",
+    "Typing :: Typed",
+]
+dependencies = [
+    "langchain-core>=1.3.3",
+    "langgraph>=1.2.11",
+    "typer>=0.12.0",
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+server = [
+    "fastapi>=0.111.0",
+    "uvicorn>=0.30.0",
+]
+client = [
+    "requests>=2.28.0",
+    "python-dotenv>=1.0.0",
+    "textual>=3.0.0",
+]
+mcp = [
+    # Keep the <3 bound. An unbounded `mcp>=…` resolves quietly rather than
+    # failing: pip will pick an SDK major this code was never written against.
+    # mcp 2.0 also deleted `mcp.server.fastmcp`, so `src/nodewatch/mcp_server.py`
+    # requires 2.x specifically.
+    "mcp>=2,<3",
+]
+ab-model = [
+    "langchain-anthropic>=0.3.0",
+    "langchain-openai>=0.2.0",
+    "langchain-aws>=0.2.0",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "fastapi>=0.111.0",
+    "httpx>=0.27.0",
+    "requests>=2.28.0",
+    "ruff>=0.6.0",
+    "textual>=3.0.0",
+    "mcp>=2,<3",
+]
+
+[project.urls]
+Homepage = "https://lucas-servi.github.io/llm-nodewatch/"
+Documentation = "https://github.com/Lucas-Servi/llm-nodewatch/tree/main/docs"
+Changelog = "https://github.com/Lucas-Servi/llm-nodewatch/blob/main/CHANGELOG.md"
+Issues = "https://github.com/Lucas-Servi/llm-nodewatch/issues"
+Source = "https://github.com/Lucas-Servi/llm-nodewatch"
+
+[project.scripts]
+nodewatch = "nodewatch.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nodewatch"]
+
+# Without an explicit sdist config hatchling ships everything not gitignored,
+# which put internal maintainer notes inside the 0.1.0 tarball on disk.
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/nodewatch",
+    "tests",
+    "examples",
+    "docs",
+    "README.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "CODE_OF_CONDUCT.md",
+    "SECURITY.md",
+    "LICENSE",
+    "pyproject.toml",
+    ".env.example",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]

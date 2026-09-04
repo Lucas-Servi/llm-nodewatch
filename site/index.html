@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nodewatch — per-node token and cost tracking for LangGraph agents</title>
+<meta name="description" content="nodewatch profiles LangGraph agents per node: tokens, cost, latency and loop counts, in one SQLite file. No collector, no account, no changes to your graph.">
+<link rel="canonical" href="https://lucas-servi.github.io/llm-nodewatch/">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="nodewatch — per-node cost for LangGraph agents">
+<meta property="og:description" content="Which node is burning your tokens? Per-node tokens, cost, latency and loop counts in one SQLite file.">
+<meta property="og:url" content="https://lucas-servi.github.io/llm-nodewatch/">
+<meta property="og:image" content="https://raw.githubusercontent.com/Lucas-Servi/llm-nodewatch/main/assets/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="rail">
+  <a class="mark" href="./" aria-label="nodewatch home">
+    <svg class="mark-glyph" viewBox="0 0 34 26" aria-hidden="true" focusable="false">
+      <path d="M6 13 L22 5" /><path d="M6 13 L22 21" />
+      <circle cx="6" cy="13" r="3.4" class="g-node" />
+      <circle cx="22" cy="5" r="3.4" class="g-node" />
+      <circle cx="22" cy="21" r="4.6" class="g-hot" />
+      <circle cx="22" cy="21" r="7.8" class="g-ring" />
+    </svg>
+    <span class="mark-word">node<b>watch</b></span>
+  </a>
+  <nav class="rail-nav" aria-label="Project links">
+    <a href="https://github.com/Lucas-Servi/llm-nodewatch">GitHub</a>
+    <a href="https://pypi.org/project/llm-nodewatch/">PyPI</a>
+    <a href="https://github.com/Lucas-Servi/llm-nodewatch/tree/main/docs">Docs</a>
+  </nav>
+</header>
+
+<main id="main">
+
+  <section class="hero">
+    <h1>Which node is burning your tokens?</h1>
+    <p class="lede">
+      nodewatch attaches to a LangGraph agent as a callback and reconstructs what each node
+      actually cost — tokens, dollars, latency, and how many times it looped. It writes to one
+      SQLite file. Nothing leaves your machine.
+    </p>
+
+    <figure class="panel" id="panel">
+      <figcaption class="panel-head">
+        <span class="run-id">a1b2c3d4e5f6</span>
+        <span class="sep" aria-hidden="true">|</span>
+        <span>rag-agent</span>
+        <span class="sep" aria-hidden="true">|</span>
+        <span>What are the key findings in the latest report?</span>
+      </figcaption>
+
+      <div class="panel-body">
+        <!-- Decorative mirror of the table beside it; the table carries the semantics. -->
+        <div class="stage">
+          <svg id="graph" viewBox="0 0 300 404" aria-hidden="true" focusable="false"></svg>
+        </div>
+
+        <div class="ledger">
+          <table id="ledger">
+            <caption class="vh">Per-node breakdown of run a1b2c3d4e5f6</caption>
+            <thead>
+              <tr>
+                <th scope="col">Node</th>
+                <th scope="col" class="num">Tokens</th>
+                <th scope="col" class="num">Loops</th>
+                <th scope="col" class="num">Cost</th>
+              </tr>
+            </thead>
+            <tbody id="ledger-body"></tbody>
+          </table>
+
+          <dl class="totals">
+            <div><dt>Tokens</dt><dd id="t-tokens">0</dd></div>
+            <div><dt>Cost</dt><dd id="t-cost">$0.00</dd></div>
+            <div><dt>Wall time</dt><dd id="t-time">0.0s</dd></div>
+          </dl>
+
+          <button type="button" id="replay" class="replay">
+            <span class="replay-glyph" aria-hidden="true">&#x21BB;</span> Replay run
+          </button>
+        </div>
+      </div>
+    </figure>
+
+    <p class="verdict" id="verdict" hidden>
+      <b>analyzer</b> is 49% of the bill and it ran twice. A span tree would have made you work
+      that out yourself.
+    </p>
+
+    <div class="install">
+      <code id="install-cmd" tabindex="0">pip install "llm-nodewatch[server]"</code>
+      <button type="button" id="copy" class="copy" data-copy="pip install &quot;llm-nodewatch[server]&quot;">Copy</button>
+    </div>
+  </section>
+
+  <section class="band">
+    <h2>Two lines, no graph changes</h2>
+    <div class="split">
+      <pre class="code" tabindex="0"><code><span class="k">import</span> nodewatch
+
+<span class="c">#<!-- --> these two lines are the integration</span>
+tracker = nodewatch.GraphTracker(<span class="s">"my-graph"</span>)
+result = <span class="k">await</span> graph.ainvoke(
+    state, config=tracker.config,
+)
+
+trace = tracker.finalize(query=q)
+nodewatch.SQLiteStorage(<span class="s">"runs.db"</span>).save(trace)</code></pre>
+      <div class="prose">
+        <p>
+          <code>tracker.config</code> is just <code>{"callbacks": [tracker]}</code>, so your graph
+          is untouched. Node identity comes from LangGraph's own metadata, which is why the
+          numbers land per node instead of per span.
+        </p>
+        <p>
+          Explore it from the CLI, a full-screen terminal dashboard, an MCP server your assistant
+          can query, or a FastAPI router you mount in an app you already run.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <h2>Why not LangSmith, Langfuse or Phoenix?</h2>
+    <p class="prose">
+      Use those if you want a hosted UI, dataset management and team features. Use nodewatch when
+      you want per-node cost accounting with nothing to operate.
+    </p>
+    <div class="scroll-x" tabindex="0" role="region" aria-label="Comparison with other observability tools">
+      <table class="compare">
+        <thead>
+          <tr>
+            <th scope="col"><span class="vh">Capability</span></th>
+            <th scope="col" class="mine">nodewatch</th>
+            <th scope="col">LangSmith</th>
+            <th scope="col">Langfuse</th>
+            <th scope="col">OpenLLMetry</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">Infrastructure</th><td class="mine">one SQLite file</td><td>SaaS account</td><td>Postgres + ClickHouse</td><td>OTLP collector</td></tr>
+          <tr><th scope="row">Data leaves your machine</th><td class="mine">never</td><td>yes</td><td>self-host option</td><td>to a collector</td></tr>
+          <tr><th scope="row">Unit of aggregation</th><td class="mine">LangGraph node</td><td>span tree</td><td>span tree</td><td>span tree</td></tr>
+          <tr><th scope="row">Loop count per node</th><td class="mine">yes</td><td>derive it</td><td>derive it</td><td>derive it</td></tr>
+          <tr><th scope="row">A/B experiment runner</th><td class="mine">built in</td><td>no</td><td>no</td><td>no</td></tr>
+          <tr><th scope="row">Runtime dependencies</th><td class="mine">four</td><td>SDK + account</td><td>SDK + stack</td><td>instrumentation</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="band">
+    <h2>Things that are easy to get wrong</h2>
+    <div class="split">
+      <div class="prose">
+        <p>
+          <b>Cache tokens.</b> LangChain nests cache counts under
+          <code>usage_metadata["input_token_details"]</code>, and its <code>input_tokens</code> is
+          <em>inclusive</em> of them. nodewatch subtracts them back out, so input stays exclusive
+          and cached reads get priced at cache rates. Summing both double-counts your input.
+        </p>
+      </div>
+      <div class="prose">
+        <p>
+          <b>Reasoning tokens.</b> Providers already count reasoning inside
+          <code>output_tokens</code>. Adding <code>output_token_details.reasoning</code> on top
+          inflates cost on every thinking-enabled call, so nodewatch deliberately doesn't.
+        </p>
+      </div>
+    </div>
+    <p class="prose aside">
+      Worth checking in whichever tool you pick — both are silent when wrong.
+    </p>
+  </section>
+
+  <section class="band">
+    <h2>Specification</h2>
+    <dl class="spec">
+      <div><dt>Storage</dt><dd>One SQLite file, WAL mode. No daemon, no account, no collector.</dd></div>
+      <div><dt>Runtime dependencies</dt><dd><code>langchain-core</code>, <code>langgraph</code>, <code>typer</code>, <code>rich</code>.</dd></div>
+      <div><dt>Captured per node</dt><dd>Input, output, thinking and cache tokens; cost; latency; loop count; tool calls.</dd></div>
+      <div><dt>Captured per call</dt><dd>Model, provider, stop reason, content-filter detection, and tool failures read from error <em>payloads</em>, not just raised exceptions.</dd></div>
+      <div><dt>Surfaces</dt><dd>CLI, terminal dashboard, MCP server (13 tools), mountable FastAPI router.</dd></div>
+      <div><dt>A/B runner</dt><dd>Cohorts keyed on the model that actually served each run, comparing only matched node paths.</dd></div>
+      <div><dt>Python</dt><dd>3.11 and up, tested through 3.14.</dd></div>
+      <div><dt>Licence</dt><dd>MIT.</dd></div>
+    </dl>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="foot-links">
+    <a href="https://github.com/Lucas-Servi/llm-nodewatch">Source</a>
+    <a href="https://pypi.org/project/llm-nodewatch/">PyPI</a>
+    <a href="https://github.com/Lucas-Servi/llm-nodewatch/tree/main/docs">Documentation</a>
+    <a href="https://github.com/Lucas-Servi/llm-nodewatch/blob/main/CHANGELOG.md">Changelog</a>
+    <a href="https://github.com/Lucas-Servi/llm-nodewatch/issues">Issues</a>
+  </div>
+  <p class="foot-note">
+    MIT licensed. Built by <a href="https://github.com/Lucas-Servi">Lucas Servi</a>.
+    Figures on this page are the documented example run, not a live agent.
+  </p>
+</footer>
+
+<script src="main.js"></script>
+</body>
+</html>
