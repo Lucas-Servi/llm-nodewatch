@@ -1,0 +1,39 @@
+{
+  "_comment": "A/B model benchmark over an HTTP agent API. Run with: nodewatch ab-run --config examples/ab_config.example.json --local --db nodewatch.db. The target API must be nodewatch-instrumented and writing traces to the same --db. ${VAR} is expanded from the environment so no secrets live in this file.",
+
+  "transport": "http",
+
+  "api": {
+    "url": "http://localhost:8000/v1/query",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer ${API_TOKEN}"
+    },
+    "timeout_seconds": 600,
+    "model_field": "model",
+    "prompt_field": "user_prompt",
+    "conversation_id_field": "conversation_id",
+    "body": {
+      "stream": false
+    }
+  },
+
+  "experiment": {
+    "reps": 3,
+    "settle_seconds": 3,
+    "switch_mode": "per_request",
+    "conv_id_template": "ab_{phase}_{qid}_r{rep}"
+  },
+
+  "models": [
+    { "id": "opus-4-8", "request_model": "claude-opus-4-8", "expect": "opus-4-8" },
+    { "id": "opus-4-7", "request_model": "claude-opus-4-7", "expect": "opus-4-7" }
+  ],
+
+  "questions": [
+    { "id": "q_capital", "text": "What is the capital of France?" },
+    { "id": "q_relativity", "text": "Summarize the theory of relativity in two sentences." },
+    { "id": "q_sort", "text": "Write a Python function that returns the median of a list." }
+  ]
+}

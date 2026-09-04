@@ -1,0 +1,145 @@
+name: Release to PyPI
+
+on:
+  push:
+    tags:
+      - "v*"
+
+# Read-only by default. id-token: write is granted per-job, only where the
+# Trusted Publishing exchange actually happens.
+permissions:
+  contents: read
+
+jobs:
+  # A tag push must not be able to publish code that fails the suite.
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check src tests
+
+      - name: Test
+        run: pytest -q
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install build tools
+        run: pip install build
+
+      - name: Check the tag matches the packaged version
+        run: |
+          python - <<'PY'
+          import os, re, pathlib
+          tag = os.environ["GITHUB_REF_NAME"]
+          text = pathlib.Path("pyproject.toml").read_text()
+          version = re.search(r'^version = "([^"]+)"', text, re.M).group(1)
+          assert tag == f"v{version}", f"tag {tag} does not match pyproject version {version}"
+          print(f"tag {tag} matches version {version}")
+          PY
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Verify artifact contents
+        run: |
+          pip install check-wheel-contents twine
+          check-wheel-contents dist/*.whl
+          twine check dist/*
+          python - <<'PY'
+          import pathlib, tarfile, zipfile
+
+          whl = next(p for p in pathlib.Path("dist").iterdir() if p.suffix == ".whl")
+          with zipfile.ZipFile(whl) as z:
+              names = z.namelist()
+          assert any("py.typed" in n for n in names), "py.typed missing from wheel"
+          assert any("data/pricing.json" in n for n in names), "data/pricing.json missing from wheel"
+
+          # Maintainer-only notes must not ship to PyPI.
+          sdist = next(p for p in pathlib.Path("dist").iterdir() if p.name.endswith(".tar.gz"))
+          with tarfile.open(sdist) as t:
+              members = t.getnames()
+          leaked = [m for m in members if pathlib.Path(m).name in {"CLAUDE.md", "IMPROVEMENT_PLAN.md"}]
+          assert not leaked, f"internal notes leaked into sdist: {leaked}"
+          print("Artifact contents OK")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish-testpypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          # Without this, any retag or re-run dies on "file already exists" —
+          # the most common first-release failure.
+          skip-existing: true
+
+  publish-pypi:
+    needs: publish-testpypi
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    needs: publish-pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "$GITHUB_REF_NAME" \
+            --notes "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/CHANGELOG.md)."

@@ -1,0 +1,4 @@
+# Dependencies are declared in pyproject.toml (the single source of truth).
+# This file exists only so `pip install -r requirements.txt` sets up a full
+# development environment. For a runtime-only install, prefer `pip install .`.
+-e .[dev]

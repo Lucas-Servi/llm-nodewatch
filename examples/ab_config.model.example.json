@@ -1,0 +1,32 @@
+{
+  "_comment": "A/B benchmark that calls the models DIRECTLY (no server) via their LangChain client. The most self-contained option: just set credentials in the environment. Run with: nodewatch ab-run --config examples/ab_config.model.example.json --local --db nodewatch.db. NOTE: this calls the models and incurs real API cost.",
+
+  "transport": "model",
+
+  "model": {
+    "_comment_provider": "anthropic → ANTHROPIC_API_KEY (+ pip install langchain-anthropic). For AWS Bedrock use \"bedrock\" with AWS_* creds (+ pip install langchain-aws); for OpenAI use \"openai\" with OPENAI_API_KEY (+ pip install langchain-openai).",
+    "provider": "anthropic",
+    "system": "You are a concise, helpful assistant.",
+    "max_tokens": 1024,
+    "params": {
+      "temperature": 0
+    }
+  },
+
+  "experiment": {
+    "reps": 1,
+    "settle_seconds": 0,
+    "_comment_pause_check": "Set pause_check to true (default message) or a custom string to require a user confirmation before the run spends anything. Over MCP this makes run_ab_session return status=confirmation_required until called again with confirm=true; on the CLI it prompts y/N (skip with --yes).",
+    "pause_check": false
+  },
+
+  "models": [
+    { "id": "opus-4-8", "request_model": "claude-opus-4-8", "expect": "opus-4-8" },
+    { "id": "opus-4-7", "request_model": "claude-opus-4-7", "expect": "opus-4-7" }
+  ],
+
+  "questions": [
+    { "id": "q_capital", "text": "What is the capital of France?" },
+    { "id": "q_relativity", "text": "Summarize the theory of relativity in two sentences." }
+  ]
+}
