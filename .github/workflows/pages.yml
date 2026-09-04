@@ -21,14 +21,13 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # configure-pages needs pages:write to turn Pages on via `enablement`.
-    # id-token stays scoped to the deploy job, which is the only place the
-    # Trusted Publishing style token exchange happens.
+    # configure-pages reads the Pages config, so it needs pages:write.
+    # id-token stays scoped to the deploy job — the only place that exchanges one.
     permissions:
       contents: read
       pages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check the site is self-contained
         run: |
@@ -64,9 +63,9 @@ jobs:
       # so enabling Pages is a one-time owner action:
       #   gh api -X POST repos/<owner>/<repo>/pages -f build_type=workflow
       # or Settings > Pages > Source: GitHub Actions.
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
@@ -81,4 +80,4 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
